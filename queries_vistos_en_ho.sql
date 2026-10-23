@@ -86,3 +86,139 @@ WHERE fecha >= DATE '2026-02-01'
 GROUP BY cliente_id
 HAVING SUM(cantidad * precio_unitario) >= 600
 ORDER BY cliente_id;
+
+-- 14. INNER JOIN: relaciona cada venta con su cliente y su producto.
+-- Muestra diez filas. Elena no aparece porque no realizó compras.
+SELECT v.id AS venta, TRIM(c.nombre) AS cliente, p.nombre AS producto,
+       v.cantidad, v.cantidad * v.precio_unitario AS importe
+FROM ventas AS v
+INNER JOIN clientes AS c ON c.id = v.cliente_id
+INNER JOIN productos AS p ON p.id = v.producto_id
+ORDER BY v.id;
+
+-- 15. LEFT JOIN: conserva a todos los clientes, incluso los que no compraron.
+-- COUNT(v.id) no cuenta NULL: Elena aparece con cero ventas.
+SELECT c.id, TRIM(c.nombre) AS cliente, COUNT(v.id) AS cantidad_ventas
+FROM clientes AS c
+LEFT JOIN ventas AS v ON v.cliente_id = c.id
+GROUP BY c.id, c.nombre
+ORDER BY c.id;
+
+-- 16. RIGHT JOIN: conserva todos los productos de la tabla de la derecha.
+-- La lámpara aparece con venta NULL porque nunca se vendió.
+SELECT p.nombre AS producto, v.id AS venta
+FROM ventas AS v
+RIGHT JOIN productos AS p ON p.id = v.producto_id
+ORDER BY p.id, v.id;
+
+-- 17. FULL JOIN: combina dos listas de clientes construidas desde ventas.
+-- Izquierda: compradores de teclado. Derecha: compradores de taza.
+-- Ana aparece en ambos lados; Bruno solo a la izquierda; Carla y Diego a la derecha.
+-- DISTINCT deja una fila por cliente en cada lista antes de relacionarlas.
+SELECT t.cliente_id AS comprador_teclado, z.cliente_id AS comprador_taza
+FROM (SELECT DISTINCT cliente_id FROM ventas WHERE producto_id = 1) AS t
+FULL JOIN
+     (SELECT DISTINCT cliente_id FROM ventas WHERE producto_id = 4) AS z
+ON t.cliente_id = z.cliente_id
+ORDER BY COALESCE(t.cliente_id, z.cliente_id);
+
+-- 18. UNION: reúne compradores de teclado o cuaderno, sin repetir clientes.
+-- Esperado: identificadores 1, 2 y 4.
+SELECT cliente_id FROM ventas WHERE producto_id = 1
+UNION
+SELECT cliente_id FROM ventas WHERE producto_id = 3
+ORDER BY cliente_id;
+
+-- 19. UNION ALL: reúne las mismas listas y conserva las repeticiones.
+-- Esperado: 1, 1, 2, 2, 4. UNION compara filas completas, no solo claves.
+SELECT cliente_id FROM ventas WHERE producto_id = 1
+UNION ALL
+SELECT cliente_id FROM ventas WHERE producto_id = 3
+ORDER BY cliente_id;
+
+-- 20. INTERSECT: encuentra clientes que compraron tanto teclado como cuaderno.
+-- Esperado: identificadores 1 y 2.
+SELECT cliente_id FROM ventas WHERE producto_id = 1
+INTERSECT
+SELECT cliente_id FROM ventas WHERE producto_id = 3
+ORDER BY cliente_id;
+
+-- 21. ALTER TABLE: agrega un teléfono opcional a los clientes.
+-- BEGIN y ROLLBACK permiten probar el cambio sin dejarlo guardado.
+BEGIN;
+ALTER TABLE clientes ADD COLUMN telefono varchar(20);
+
+-- Guarda un teléfono de ejemplo para Ana dentro de esta transacción.
+UPDATE clientes SET telefono = '555-0101' WHERE id = 1;
+
+-- Comprueba que la nueva columna está disponible y contiene el teléfono.
+SELECT id, nombre, telefono FROM clientes ORDER BY id;
+
+-- Deshace la columna y la actualización. Ejecuta todo el bloque anterior junto.
+ROLLBACK;
+
+-- 22. CREATE INDEX: crea un índice para búsquedas de ventas por cliente.
+-- Con diez filas PostgreSQL puede preferir leer toda la tabla; es normal.
+BEGIN;
+CREATE INDEX idx_ventas_cliente ON ventas(cliente_id);
+
+-- EXPLAIN muestra cómo PostgreSQL planea buscar las ventas de Ana.
+EXPLAIN SELECT id, fecha, cantidad FROM ventas WHERE cliente_id = 1;
+
+-- Elimina el índice de prueba al deshacer la transacción.
+ROLLBACK;
+
+-- 23. TRIGGER: convierte a minúsculas y quita espacios de correos nuevos.
+-- En PostgreSQL se necesita primero una función y después el trigger.
+BEGIN;
+CREATE FUNCTION limpiar_email()
+RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    NEW.email := LOWER(TRIM(NEW.email));
+    RETURN NEW;
+END;
+$$;
+
+-- Hace que la función se ejecute antes de insertar o modificar un correo.
+CREATE TRIGGER normalizar_email
+BEFORE INSERT OR UPDATE OF email ON clientes
+FOR EACH ROW
+EXECUTE FUNCTION clase_simple.limpiar_email();
+
+-- Inserta un cliente con espacios y mayúsculas; el trigger limpia su correo.
+INSERT INTO clientes (id, nombre, email, ciudad)
+VALUES (6, 'Fabio Mora', '  FABIO@ejemplo.test  ', 'Puebla');
+
+-- Comprueba que se guardó fabio@ejemplo.test, sin espacios ni mayúsculas.
+SELECT id, nombre, email FROM clientes WHERE id = 6;
+
+-- Deshace el cliente de prueba, el trigger y su función para poder repetir.
+-- El trigger no modifica automáticamente a los clientes que ya existían.
+ROLLBACK;
+
+-- 24. COMMIT: confirma un cambio y permite verlo después de la transacción.
+BEGIN;
+UPDATE productos SET precio = 550 WHERE id = 1;
+COMMIT;
+
+-- Comprueba que el teclado ahora cuesta 550. Sus ventas históricas no cambian.
+SELECT id, nombre, precio FROM productos WHERE id = 1;
+
+-- Devuelve el precio original para dejar la base lista para repetir la clase.
+BEGIN;
+UPDATE productos SET precio = 500 WHERE id = 1;
+COMMIT;
+
+-- 25. ROLLBACK: deshace una modificación que todavía no se confirmó.
+BEGIN;
+UPDATE productos SET precio = 999 WHERE id = 1;
+
+-- Dentro de la transacción se observa el precio temporal de 999.
+SELECT id, nombre, precio FROM productos WHERE id = 1;
+
+-- Cancela el cambio de precio.
+ROLLBACK;
+
+-- Comprueba que el precio volvió a 500.
