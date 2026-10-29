@@ -222,3 +222,81 @@ SELECT id, nombre, precio FROM productos WHERE id = 1;
 ROLLBACK;
 
 -- Comprueba que el precio volvió a 500.
+
+SELECT *
+FROM ventas;
+
+SELECT AVG(cantidad * precio_unitario)
+FROM ventas;
+
+SELECT id, fecha, cantidad * precio_unitario AS importe
+FROM ventas
+WHERE cantidad * precio_unitario > (
+	SELECT AVG(cantidad * precio_unitario)
+	FROM ventas);
+
+SELECT *
+FROM ventas;
+
+SELECT *
+FROM ventas
+WHERE producto_id = 3;
+
+
+SELECT nombre, ciudad
+FROM clientes
+WHERE id IN (
+	SELECT cliente_id
+	FROM ventas
+	WHERE producto_id = 3);
+
+SELECT DISTINCT ciudad
+FROM clientes
+WHERE id IN (
+	SELECT cliente_id
+	FROM ventas
+	WHERE producto_id = 3);
+
+SELECT *
+FROM clientes;
+
+
+SELECT c.id, c.nombre
+FROM clientes c
+WHERE NOT EXISTS
+	(SELECT 1
+	FROM ventas v
+	WHERE v.cliente_id = c.id);
+
+
+WITH tabla_con_cuadernos AS (
+	SELECT cliente_id
+	FROM ventas
+	WHERE producto_id = 3
+)
+SELECT DISTINCT ciudad
+FROM clientes
+WHERE id IN (tabla_con_cuadernos); 
+
+WITH importes AS (
+	SELECT id, cantidad * precio_unitario AS importe
+	FROM ventas
+)
+SELECT id, importe, RANK() OVER (ORDER BY importe DESC) AS puesto
+FROM importes;
+
+
+SELECT *
+FROM ventas
+LIMIT 3;
+
+SELECT *
+FROM ventas
+ORDER BY id DESC
+LIMIT 3
+OFFSET 3;
+
+SELECT *
+FROM ventas
+ORDER BY id DESC
+FETCH FIRST 5 ROWS ONLY;
