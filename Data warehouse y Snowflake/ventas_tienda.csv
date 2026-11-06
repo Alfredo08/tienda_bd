@@ -1,0 +1,11 @@
+venta_id,cliente_id,cliente,ciudad,producto_id,producto,fecha,cantidad,precio_unitario
+1,1,  Ana López  , MONTERREY ,1,Teclado,2026-01-05,1,500
+2,2,Bruno Díaz,Monterrey,2,Mouse,2026-01-10,2,250
+3,1,  Ana López  , MONTERREY ,3,Cuaderno,2026-01-15,3,100
+4,3,Carla Ruiz,Guadalajara,4,Taza,2026-01-20,2,150
+5,2,Bruno Díaz,Monterrey,1,Teclado,2026-02-05,1,500
+6,4,Diego Pérez,Puebla,3,Cuaderno,2026-02-10,2,100
+7,3,Carla Ruiz,Guadalajara,2,Mouse,2026-02-15,1,250
+8,1,  Ana López  , MONTERREY ,4,Taza,2026-03-01,1,150
+9,2,Bruno Díaz,Monterrey,3,Cuaderno,2026-03-10,5,100
+10,4,Diego Pérez,Puebla,4,Taza,2026-03-20,3,150
